@@ -9,13 +9,17 @@ import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.repackaged.com.google.common.base.Preconditions;
 import com.google.api.client.repackaged.com.google.common.base.Strings;
 import com.google.api.services.androidpublisher.AndroidPublisher;
+import com.google.api.services.androidpublisher.AndroidPublisherScopes;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import javax.annotation.Nullable;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.GeneralSecurityException;
+import java.util.Collections;
 
 
 public class AndroidPublisherHelper {
@@ -33,24 +37,28 @@ public class AndroidPublisherHelper {
     private static Credential authorizeWithServiceAccountFile(InputStream serviceAccountStream)
             throws GeneralSecurityException, IOException {
 
-        GoogleCredential credential = GoogleCredential.fromStream(serviceAccountStream);
+        GoogleCredential credential = GoogleCredential
+                .fromStream(serviceAccountStream)
+                .createScoped(Collections.singleton(AndroidPublisherScopes.ANDROIDPUBLISHER));
+
         return credential;
     }
 
     protected static AndroidPublisher init(String applicationName,
-                                           @Nullable InputStream serviceAccountStream)
+                                           String credentialsFile)
             throws IOException, GeneralSecurityException {
 
         Preconditions.checkArgument(!Strings.isNullOrEmpty(applicationName),
                 "applicationName cannot be null or empty!");
 
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(credentialsFile),
+                "credentialsFile cannot be null or empty!");
+
         // Authorization.
         newTrustedTransport();
         Credential credential;
 
-        //TODO: update this to use a json file for the credentials
-        credential = authorizeWithServiceAccountFile(serviceAccountStream);
-
+        credential = authorizeWithServiceAccountFile(new FileInputStream(credentialsFile));
 
         // Set up and return API client.
         return new AndroidPublisher.Builder(

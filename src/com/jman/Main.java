@@ -28,18 +28,23 @@ public class Main {
 
     private static final String TRACK_ALPHA = "alpha";
 
-    @Parameter(names={"--pattern", "-p"})
-    int pattern;
+    @Parameter(names={"--appname", "-a"}, required=true)
+    String ApplicationName;
+
+    @Parameter(names={"--package", "-p"}, required=true)
+    String PackageName;
+
+    @Parameter(names={"--credentials", "-c"}, required=true)
+    String CredentialsFile;
+
+    @Parameter(names={"--apk", "-f"}, required=true)
+    List<String> apkFiles;
 
     public void run () {
-        final String PackageName = "";
-        final String apkPath = "";
 
-        // write your code here
-        // Create the API service.
         try {
             AndroidPublisher service = AndroidPublisherHelper.init(
-                    "ApplicationName", null);
+                    ApplicationName, CredentialsFile);
 
             final Edits edits = service.edits();
 
@@ -51,19 +56,25 @@ public class Main {
             log.info(String.format("Created edit with id: %s", editId));
 
             // Upload new apk to developer console
-            final AbstractInputStreamContent apkFile =
-                    new FileContent(AndroidPublisherHelper.MIME_TYPE_APK, new File(apkPath));
-            Upload uploadRequest = edits
-                    .apks()
-                    .upload(PackageName, editId, apkFile);
 
-            Apk apk = uploadRequest.execute();
-            log.info(String.format("Version code %d has been uploaded",
-                    apk.getVersionCode()));
-
-            // Assign apk to alpha track.
             List<Integer> apkVersionCodes = new ArrayList<Integer>();
-            apkVersionCodes.add(apk.getVersionCode());
+
+            for (String apkFilename : apkFiles) {
+                AbstractInputStreamContent apkContent =  new FileContent(
+                        AndroidPublisherHelper.MIME_TYPE_APK,
+                        new File(apkFilename));
+
+                log.info("Uploading: " + apkFilename);
+                Apk apk = edits.apks()
+                            .upload(PackageName, editId, apkContent)
+                            .execute();
+
+                apkVersionCodes.add(apk.getVersionCode());
+
+                log.info(String.format("Version code %d has been uploaded",
+                        apk.getVersionCode()));
+            }
+
             Update updateTrackRequest = edits
                     .tracks()
                     .update(PackageName,
@@ -73,10 +84,11 @@ public class Main {
             Track updatedTrack = updateTrackRequest.execute();
             log.info(String.format("Track %s has been updated.", updatedTrack.getTrack()));
 
-//            // Commit changes for edit.
-//            Commit commitRequest = edits.commit(PackageName, editId);
-//            AppEdit appEdit = commitRequest.execute();
-//            log.info(String.format("App edit with id %s has been comitted", appEdit.getId()));
+            // Commit changes for edit.
+            Edits.Commit commitRequest = edits.commit(PackageName, editId);
+            AppEdit appEdit = commitRequest.execute();
+
+            log.info(String.format("App edit with id %s has been comitted", appEdit.getId()));
 
         } catch (IOException e) {
             e.printStackTrace();
